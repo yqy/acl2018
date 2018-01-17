@@ -1,0 +1,21 @@
+1、运行 ./generate_data.sh 
+从CONLL 2012下载数据并根据ontonotes 5.0生成train,dev,test数据
+其中train and dev 都是v4
+test 的auto_conll数据是v9, gold_conll是v4
+这里只用 (*.auto_conll 和 *.gold_conll)
+
+2、安装mavean, stanford CoreNLP
+然后 mvn package 在./target/ 下生成.jar
+然后按照要求运行即可
+
+3、数据准备
+train and dev 不用准备
+test得特殊对待：由于test数据中.auto_conll的最后一列（标注了coreference chain信息的列）都是空，因此要从v4的test的gold_conll文件中copy对应列到auto_conll中
+python copy_autoConll.py 就是这个功能，不过要注意运行之前先给定源文件与目标文件的路径
+
+此外，根据系统的不同(CoreNLP/src/edu/stanford/nlp/coref/CorefProperties.java)文件的161行，public static Locale getLanguage(Properties props)函数可能会需要中文的文件夹（return Locale.ENGLISH），因此要根据系统更改train,test,dev对应的chinese,english文件夹名称（改成中文、英文）。
+
+4、跑stanford CoreNLP，生成训练文件
+
+java -Xmx4g -cp stanford-corenlp-3.7.0.jar:stanford-corenlp-models-current.jar:./lib/javax.json.jar:* edu.stanford.nlp.coref.neural.NeuralCorefDataExporter ./src/edu/stanford/nlp/coref/properties/neural-chinese-conll.properties ./result
+
