@@ -87,7 +87,7 @@ class Network(nn.Module):
         x = self.hidden_layer_2(x)
         x = self.activate(x)
 
-        representation = x
+        representation = x.data.cpu().numpy()
 
         x = dropout_layer(x)
         x = torch.transpose(self.output_layer(x),0,1)
@@ -119,7 +119,7 @@ class Network(nn.Module):
         xs = self.ana_hidden_layer_2(xs)
         xs = self.activate(xs)
 
-        representation = xs
+        representation = xs.data.cpu().numpy()
 
         xs = dropout_layer(xs)
         xs = self.ana_output_layer(xs)

@@ -39,7 +39,6 @@ def main():
     embedding_file = args.embedding_dir
 
     embedding_matrix = numpy.load(embedding_file)
-    "Building torch model"
     network_model = network.Network(nnargs["pair_feature_dimention"],nnargs["mention_feature_dimention"],nnargs["word_embedding_dimention"],nnargs["span_dimention"],1000,nnargs["embedding_size"],nnargs["embedding_dimention"],embedding_matrix).cuda()
 
     reduced=""
@@ -57,7 +56,7 @@ def main():
     dropout_rate = nnargs["dropout_rate"]
     epoch = nnargs["epoch"]
 
-    model_save_dir = "./model/"
+    model_save_dir = "./model/bp/"
    
     last_cost = 0.0
     all_best_results = {

@@ -72,7 +72,7 @@ def main():
     dropout_rate = nnargs["dropout_rate"]
     epoch = nnargs["epoch"]
 
-    model_save_dir = "./model/"
+    model_save_dir = "./model/bp/"
    
     last_cost = 0.0
     all_best_results = {

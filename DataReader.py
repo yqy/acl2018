@@ -181,9 +181,9 @@ class DataGnerater():
                         i = start
                         continue 
 
-                    WL = 1.0
-                    FL = 0.4
-                    FN = 0.8
+                    WL = 0.0
+                    FL = 0.0
+                    FN = 0.0
 
                     if anaphoric:
                         ana_costs = np.append(WL * (ana_labels ^ 1), FN)
@@ -297,7 +297,7 @@ class DataGnerater():
         total_num = len(self.doc_batch)
         estimate_time = 0.0
 
-        for did_index in index_list:
+        for did_index in index_list:#[905:]:
             start_time = timeit.default_timer() 
             did = self.doc_batch.keys()[did_index]
             done_num += 1

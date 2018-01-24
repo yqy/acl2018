@@ -17,7 +17,7 @@ sys.setrecursionlimit(1000000)
 random.seed(args.random_seed)
 
 def sample_action(action_probability):
-    ac = action_probability
+    ac = action_probability+1e-7
     ac = ac/ac.sum()
     action = numpy.random.choice(numpy.arange(len(ac)),p=ac)
     return action

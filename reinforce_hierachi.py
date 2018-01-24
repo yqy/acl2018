@@ -73,13 +73,12 @@ def main():
         reduced="_reduced"
 
     print >> sys.stderr,"prepare data for train ..."
-    train_docs_iter = DataReader.DataGnerater("train"+reduced)
-    #train_docs_iter = DataReader.DataGnerater("dev"+reduced)
+    #train_docs_iter = DataReader.DataGnerater("train"+reduced)
+    train_docs_iter = DataReader.DataGnerater("dev"+reduced)
     print >> sys.stderr,"prepare data for dev and test ..."
     dev_docs_iter = DataReader.DataGnerater("dev"+reduced)
     test_docs_iter = DataReader.DataGnerater("test"+reduced)
 
-    '''
     print "Performance after pretraining..."
     print "DEV"
     metric = performance.performance(dev_docs_iter,worker,manager) 
@@ -90,7 +89,6 @@ def main():
     print "***"
     print
     sys.stdout.flush()
-    '''
 
     lr = nnargs["lr"]
     top_k = nnargs["top_k"]
@@ -114,8 +112,8 @@ def main():
         entropy_log_manager = Logger(Tensorboard+args.tb+"/acl2018/%d/entropy/worker"%echo, flush_secs=3)
         entropy_log_worker = Logger(Tensorboard+args.tb+"/acl2018/%d/entropy/manager"%echo, flush_secs=3)
 
-        train_docs = utils.load_pickle(args.DOCUMENT + 'train_docs.pkl')
-        #train_docs = utils.load_pickle(args.DOCUMENT + 'dev_docs.pkl')
+        #train_docs = utils.load_pickle(args.DOCUMENT + 'train_docs.pkl')
+        train_docs = utils.load_pickle(args.DOCUMENT + 'dev_docs.pkl')
         docs_by_id = {doc.did: doc for doc in train_docs}
 
         ave_reward = []
@@ -140,20 +138,15 @@ def main():
             rl = data["rl"]
 
             scores_manager,representations_manager = get_score_representations(manager,data)
-            scores_worker,representations_worker = get_score_representations(worker,data)
 
             for s,e in zip(rl["starts"],rl["ends"]):
-                #action_embeddings = representations_manager[s:e]
-                #probs = F.softmax(torch.squeeze(scores_manager[s:e]))
-                action_embeddings = representations_worker[s:e]
-                probs = F.softmax(torch.squeeze(scores_worker[s:e])).data.cpu().numpy()
+                action_embeddings = representations_manager[s:e]
 
-                #m = Categorical(F.softmax(torch.squeeze(scores_worker[s:e]))[:-1])
-                #a = m.sample()
-                #this_action = m.sample()
-                #index = this_action.data.cpu().numpy()[0] 
+                probs = F.softmax(torch.transpose(scores_manager[s:e],0,1))
 
-                index = utils.choose_action(probs)
+                m = Categorical(probs)
+                this_action = m.sample()
+                index = this_action.data.cpu().numpy()[0] 
 
                 if index == (e-s-1):
                     should_cluster = current_new_cluster
@@ -168,10 +161,7 @@ def main():
                 mid += 1
 
                 cluster_indexs = torch.cuda.LongTensor(cluster_info[should_cluster])
-                action_embedding_predict_ave = torch.mean(action_embeddings[cluster_indexs],0,keepdim=True)
-                action_embedding_predict_max,max_index = torch.max(action_embeddings[cluster_indexs],dim=0,keepdim=True)
-
-                action_embedding_predict = torch.cat((action_embedding_predict_ave,action_embedding_predict_max),1)
+                action_embedding_predict = torch.mean(action_embeddings[cluster_indexs],0,keepdim=True)
                 predict_action_embedding.append(action_embedding_predict)
 
             tmp_data.append(data)
@@ -190,34 +180,35 @@ def main():
                     pair_target = data["pair_target"]
                     anaphoricity_target = 1-data["anaphoricity_target"]
                     target = numpy.concatenate((pair_target,anaphoricity_target))[rl["reindex"]]
+
                     scores_worker,representations_worker = get_score_representations(worker,data)
 
                     for s,e in zip(rl["starts"],rl["ends"]):
                         action_embeddings = representations_worker[s:e]
-                        probs = F.softmax(torch.squeeze(scores_worker[s:e])).data.cpu().numpy() #print probs.data.cpu().numpy() -> [  3.51381488e-04   9.99648571e-01]
-                        action_embedding_predicted = predict_action_embedding[inside_index]
-                        combine_embedding = torch.cat((action_embeddings,action_embeddings),1)
-                        similarities = torch.sum(torch.abs(combine_embedding - action_embedding_predicted),1)
+                        score = score_softmax(torch.transpose(scores_worker[s:e],0,1)).data.cpu().numpy()[0]
+                    
+                        action_embedding_choose = predict_action_embedding[inside_index]
+                        similarities = torch.sum(torch.abs(action_embeddings - action_embedding_choose),1)
                         similarities = similarities.data.cpu().numpy()
     
                         action_probabilities = []
                         action_list = []
-                        similarity_candidates = heapq.nlargest(top_k,-similarities)
-                        for similarity in similarity_candidates:
-                            action_index = numpy.argwhere(similarities == -similarity)[0][0]
-                            action_probabilities.append(probs[action_index])
+                        action_candidates = heapq.nlargest(top_k,-similarities)
+                        for action in action_candidates:
+                            action_index = numpy.argwhere(similarities == -action)[0][0]
+                            action_probabilities.append(score[action_index])
                             action_list.append(action_index)
-
                        
                         manager_action = choose_action[inside_index] 
-
                         if not manager_action in action_list:
                             action_list.append(manager_action)
-                            action_probabilities.append(probs[manager_action])
-                        sample_action = utils.sample_action(numpy.array(action_probabilities))
-                        worker_action = action_list[sample_action]
+                            action_probabilities.append(score[manager_action])
 
                         this_target = target[s:e]
+                        manager_action = choose_action[inside_index]
+
+                        sample_action = utils.sample_action(numpy.array(action_probabilities))
+                        worker_action = action_list[sample_action]
 
                         if this_target[worker_action] == 1:
                             statistic["worker_hits"] += 1
@@ -254,6 +245,7 @@ def main():
  
                 inside_index = 0
                 worker_entropy = 0.0
+
                 for data in tmp_data:
                     new_step = step
                     # worker
@@ -264,9 +256,10 @@ def main():
                         costs = rl['costs'][s:e]
                         costs = autograd.Variable(torch.from_numpy(costs).type(torch.cuda.FloatTensor))
                         action = worker_path[inside_index]
-                        score = F.softmax(torch.squeeze(scores_worker[s:e]))
-                        if not score.size() == costs.size():
+                        score = F.softmax(torch.transpose(scores_worker[s:e],0,1))
+                        if not score.size()[1] == costs.size()[0]:
                             continue
+                        score = torch.squeeze(score)
 
                         baseline = torch.sum(costs*score)
                         this_cost = torch.log(score[action])*-1.0*(reward-baseline)
@@ -301,31 +294,34 @@ def main():
 
                     scores_manager,representations_manager = get_score_representations(manager,data,dropout=nnargs["dropout_rate"])
                     
-                    #optimizer_manager.zero_grad
-                    #manager_loss = None
+                    optimizer_manager.zero_grad
+                    manager_loss = None
                     for s,e in zip(rl["starts"],rl["ends"]):
-                        #costs = rl['costs'][s:e]
-                        #costs = autograd.Variable(torch.from_numpy(costs).type(torch.cuda.FloatTensor))
-                        score = F.softmax(torch.squeeze(scores_manager[s:e]))
-                        action = manager_path[inside_index]
-
-                        if not score.size() == costs.size():
+                        score = F.softmax(torch.transpose(scores_manager[s:e],0,1))
+                        costs = rl['costs'][s:e]
+                        costs = autograd.Variable(torch.from_numpy(costs).type(torch.cuda.FloatTensor))
+                        if not score.size()[1] == costs.size()[0]:
                             continue
 
-                        #baseline = torch.sum(costs*score)
+                        action = manager_path[inside_index]
+                        score = torch.squeeze(score)
 
-                        #this_cost = torch.log(score[action])*-1.0*(reward-baseline)# + 0.001*torch.sum(score*torch.log(score+1e-7))
-                        #if manager_loss is None:
-                        #    manager_loss = this_cost
-                        #else:
-                        #    manager_loss += this_cost
+                        baseline = torch.sum(costs*score)
+                        this_cost = torch.log(score[action])*-1.0*(reward-baseline)# + 0.001*torch.sum(score*torch.log(score+1e-7))
+
+                        #this_cost = torch.sum(score*costs) + 0.001*torch.sum(score*torch.log(score+1e-7))
+
+                        if manager_loss is None:
+                            manager_loss = this_cost
+                        else:
+                            manager_loss += this_cost
 
                         manager_entropy += torch.sum(score*torch.log(score+1e-7)).data.cpu().numpy()[0]
                         inside_index += 1
 
-                    #manager_loss.backward()
-                    #torch.nn.utils.clip_grad_norm(manager.parameters(), nnargs["clip"])
-                    #optimizer_manager.step()
+                    manager_loss.backward()
+                    torch.nn.utils.clip_grad_norm(manager.parameters(), nnargs["clip"])
+                    optimizer_manager.step()
 
                     ave_manager_entropy.append(manager_entropy)
                     if len(ave_manager_entropy) >= MAX_AVE:
@@ -354,9 +350,9 @@ def main():
         print "DEV"
         metric = performance.performance(dev_docs_iter,worker,manager) 
         print "Average:",metric["average"]
-        #print "DEV manager"
-        #metric = performance_manager.performance(dev_docs_iter,worker,manager) 
-        #print "Average:",metric["average"]
+        print "DEV manager"
+        metric = performance_manager.performance(dev_docs_iter,worker,manager) 
+        print "Average:",metric["average"]
         print "TEST"
         metric = performance.performance(test_docs_iter,worker,manager) 
         print "Average:",metric["average"]

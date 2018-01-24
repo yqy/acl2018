@@ -7,6 +7,7 @@ import torch
 import properties_loader
 
 DIR="/home/qingyu/data/kevin_all/"
+Tensorboard="/home/qingyu/tensorboard/"
 #parse arguments
 parser = argparse.ArgumentParser(description="Experiemts for Coreference Resolution (by qyyin)\n")
 
@@ -18,6 +19,7 @@ parser.add_argument("-gpu",default = 3, type=int, help="GPU number")
 parser.add_argument("-reduced",default = 0, type=int, help="GPU number")
 parser.add_argument("-random_seed",default = 12345, type=int, help="Random Seed")
 parser.add_argument("-props",default = "./properties/probs.en", type=str, help="properties")
+parser.add_argument("-tb",default = "log", type=str, help="tensorboard dir")
 
 args = parser.parse_args()
 random.seed(args.random_seed)

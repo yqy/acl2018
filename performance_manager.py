@@ -92,10 +92,10 @@ def performance(doc,worker_net,manager_net=None):
         for s,e in zip(rl["starts"],rl["ends"]):
             manager_action_embeddings = representations_manager[s:e]
             worker_action_embeddings = representations_worker[s:e]
-            #score = score_softmax(torch.transpose(scores_manager[s:e],0,1)).data.cpu().numpy()[0]
-            score = score_softmax(torch.transpose(scores_worker[s:e],0,1)).data.cpu().numpy()[0]
+            score = score_softmax(torch.transpose(scores_manager[s:e],0,1)).data.cpu().numpy()[0]
+            #score = score_softmax(torch.transpose(scores_worker[s:e],0,1)).data.cpu().numpy()[0]
             this_action = utils.choose_action(score)
- 
+
             #if this_action == len(score)-1:
             #    cluster_indexs = torch.cuda.LongTensor([this_action])
             #else:
@@ -109,6 +109,7 @@ def performance(doc,worker_net,manager_net=None):
 
             real_action = this_action
             if real_action == len(score)-1:
+            #if this_action == len(score)-1:
                 should_cluster = new_cluster_num
                 cluster_info[should_cluster] = []
                 new_cluster_num += 1
