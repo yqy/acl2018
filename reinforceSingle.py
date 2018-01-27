@@ -65,8 +65,8 @@ def main():
         reduced="_reduced"
 
     print >> sys.stderr,"prepare data for train ..."
-    train_docs_iter = DataReader.DataGnerater("train"+reduced)
-    #train_docs_iter = DataReader.DataGnerater("dev"+reduced)
+    #train_docs_iter = DataReader.DataGnerater("train"+reduced)
+    train_docs_iter = DataReader.DataGnerater("dev"+reduced)
     print >> sys.stderr,"prepare data for dev and test ..."
     dev_docs_iter = DataReader.DataGnerater("dev"+reduced)
     test_docs_iter = DataReader.DataGnerater("test"+reduced)
@@ -105,8 +105,8 @@ def main():
         entropy_log_manager = Logger(Tensorboard+args.tb+"/acl2018/%d/entropy/worker"%echo, flush_secs=3)
         entropy_log_worker = Logger(Tensorboard+args.tb+"/acl2018/%d/entropy/manager"%echo, flush_secs=3)
 
-        train_docs = utils.load_pickle(args.DOCUMENT + 'train_docs.pkl')
-        #train_docs = utils.load_pickle(args.DOCUMENT + 'dev_docs.pkl')
+        #train_docs = utils.load_pickle(args.DOCUMENT + 'train_docs.pkl')
+        train_docs = utils.load_pickle(args.DOCUMENT + 'dev_docs.pkl')
         docs_by_id = {doc.did: doc for doc in train_docs}
 
         ave_reward = []

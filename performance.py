@@ -93,7 +93,8 @@ def performance(doc,worker_net,manager_net=None):
             manager_action_embeddings = representations_manager[s:e]
             worker_action_embeddings = representations_worker[s:e]
             #score = score_softmax(torch.transpose(scores_manager[s:e],0,1)).data.cpu().numpy()[0]
-            score = score_softmax(torch.transpose(scores_worker[s:e],0,1)).data.cpu().numpy()[0]
+            #score = score_softmax(torch.transpose(scores_worker[s:e],0,1)).data.cpu().numpy()[0]
+            score = F.softmax(torch.squeeze(scores_worker[s:e]),dim=0).data.cpu().numpy()
             this_action = utils.choose_action(score)
  
             #if this_action == len(score)-1:

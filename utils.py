@@ -6,6 +6,7 @@ import json
 import random
 import numpy
 import timeit
+import shutil
 
 from conf import *
 
